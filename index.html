@@ -87,6 +87,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- UI Elements ---
             const importDeckButton = document.getElementById('import-deck-button');
             const deckUrlInput = document.getElementById('deck-url-input');
             const nextPhaseButton = document.getElementById('next-phase-button');
@@ -102,9 +103,14 @@
             const playerHandContainer = document.getElementById('player-hand-container');
             const phaseDisplay = document.getElementById('phase-display');
 
-            const CREATE_GAME_URL = 'YOUR_RENDER_URL/create-game';
-            const NEXT_PHASE_URL = 'YOUR_RENDER_URL/next-phase';
+            // --- Configuration ---
+            // IMPORTANT: PASTE YOUR RENDER URL HERE, replacing the example URL.
+            const RENDER_SERVER_URL = 'https://your-server-name.onrender.com'; // <-- PASTE YOUR RENDER URL HERE
 
+            const CREATE_GAME_URL = `${RENDER_SERVER_URL}/create-game`;
+            const NEXT_PHASE_URL = `${RENDER_SERVER_URL}/next-phase`;
+
+            // --- UI Control Functions ---
             const showLoader = (text) => {
                 gamePanel.classList.remove('hidden');
                 loaderText.textContent = text;
@@ -122,17 +128,21 @@
                 hideLoader();
             };
 
+            // --- Game Logic Functions ---
             const handleCreateGame = async () => {
                 const url = deckUrlInput.value.trim();
-                const renderUrl = prompt("Please paste your Render server URL (e.g., https://your-server-name.onrender.com):");
-                if (!url || !renderUrl) {
-                    showError('Deck URL and Server URL are required.');
+                if (!url) {
+                    showError('Please enter a deck URL.');
+                    return;
+                }
+                 if (RENDER_SERVER_URL.includes('your-server-name')) {
+                    alert("Please update the RENDER_SERVER_URL in the index.html file with your real Render URL.");
                     return;
                 }
                 showLoader('Creating game on server...');
 
                 try {
-                    const response = await fetch(`${renderUrl}/create-game`, {
+                    const response = await fetch(CREATE_GAME_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ deckUrl: url })
@@ -142,7 +152,6 @@
                         throw new Error(errorData.error || `Server error (${response.status})`);
                     }
                     const initialGameState = await response.json();
-                    sessionStorage.setItem('renderUrl', renderUrl); // Save URL for session
                     updateUI(initialGameState);
                 } catch (error) {
                     showError(`Failed to create game: ${error.message}`);
@@ -150,17 +159,12 @@
             };
             
             const handleNextPhase = async () => {
-                const renderUrl = sessionStorage.getItem('renderUrl');
-                if (!renderUrl) {
-                     showError('Server URL not found. Please create a new game.');
-                     return;
-                }
                 nextPhaseButton.disabled = true;
                 nextPhaseButton.textContent = 'Advancing...';
                 nextPhaseButton.classList.add('opacity-50', 'cursor-not-allowed');
 
                 try {
-                    const response = await fetch(`${renderUrl}/next-phase`, { method: 'POST' });
+                    const response = await fetch(NEXT_PHASE_URL, { method: 'POST' });
                     if (!response.ok) {
                         const errorData = await response.json();
                         throw new Error(errorData.error || `Server error (${response.status})`);
@@ -219,6 +223,7 @@
                 gameStateContainer.classList.remove('hidden');
             };
 
+            // --- Event Listeners ---
             importDeckButton.addEventListener('click', handleCreateGame);
             deckUrlInput.addEventListener('keydown', (e) => e.key === 'Enter' && handleCreateGame());
             nextPhaseButton.addEventListener('click', handleNextPhase);
