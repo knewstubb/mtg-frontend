@@ -36,9 +36,9 @@
             <!-- Deck Importer (Visible by default) -->
             <div id="importer-panel" class="bg-gray-800 rounded-lg shadow-xl p-6 ui-panel max-w-2xl mx-auto">
                 <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Create New Game</h2>
-                <p class="text-gray-300 mb-4">Paste a public Moxfield or Archidekt deck URL.</p>
+                <p class="text-gray-300 mb-4">Paste a public Archidekt deck URL to begin.</p>
                 <div class="mb-4">
-                    <input type="text" id="deck-url-input" placeholder="Moxfield or Archidekt URL" class="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-4 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none placeholder-gray-500">
+                    <input type="text" id="deck-url-input" placeholder="Archidekt URL" class="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-4 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none placeholder-gray-500">
                 </div>
                  <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <button id="import-deck-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md shadow-lg transition-transform transform hover:scale-105">
@@ -101,7 +101,7 @@
             const playerHandContainer = document.getElementById('player-hand-container');
             const phaseDisplay = document.getElementById('phase-display');
 
-            const RENDER_SERVER_URL = 'https://brad-mtg-server.onrender.com'; // <-- PASTE YOUR RENDER URL HERE
+            const RENDER_SERVER_URL = 'https://brad-mtg-server.onrender.com'; // Your server URL
 
             const showLoader = (text) => {
                 gamePanel.classList.remove('hidden');
@@ -123,9 +123,8 @@
             const handleCreateGame = async () => {
                 const url = deckUrlInput.value.trim();
                 if (!url) return showError('Deck URL is required.');
-                if (RENDER_SERVER_URL.includes('your-server-name')) return alert("Please update the RENDER_SERVER_URL in the index.html file.");
-
                 showLoader('Creating game on server...');
+
                 try {
                     const response = await fetch(`${RENDER_SERVER_URL}/create-game`, {
                         method: 'POST',
@@ -146,10 +145,7 @@
             
             const handleExportCsv = async () => {
                 const url = sessionStorage.getItem('currentDeckUrl');
-                if (!url) {
-                    alert('No deck is loaded to export. Please create a new game first.');
-                    return;
-                }
+                if (!url) return alert('No deck is loaded to export. Please create a new game first.');
 
                 exportCsvButton.disabled = true;
                 exportCsvButton.textContent = 'Exporting...';
