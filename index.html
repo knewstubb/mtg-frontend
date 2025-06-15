@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MTG Commander Simulator - Game Client</title>
+    <title>MTG Commander Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -29,18 +29,23 @@
 
         <header class="text-center mb-10">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-100">MTG Commander Simulator</h1>
-            <p id="phase-display" class="text-xl text-gray-400 mt-2">Phase 1: Foundation</p>
+            <p id="phase-display" class="text-xl text-gray-400 mt-2">Deck Tools & Game Setup</p>
         </header>
 
         <main>
             <!-- Deck Importer (Visible by default) -->
             <div id="importer-panel" class="bg-gray-800 rounded-lg shadow-xl p-6 ui-panel max-w-2xl mx-auto">
-                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Create New Game</h2>
-                <p class="text-gray-300 mb-4">Paste a public Moxfield or Archidekt deck URL to begin.</p>
-                 <div class="flex flex-col sm:flex-row gap-4">
+                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Deck Input</h2>
+                <p class="text-gray-300 mb-4">Paste a public Moxfield or Archidekt deck URL.</p>
+                <div class="mb-4">
                     <input type="text" id="deck-url-input" placeholder="Moxfield or Archidekt URL" class="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-4 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none placeholder-gray-500">
+                </div>
+                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <button id="import-deck-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md shadow-lg transition-transform transform hover:scale-105">
                         Create Game
+                    </button>
+                    <button id="export-csv-button" class="bg-yellow-600 hover:bg-yellow-700 text-black font-bold py-2 px-6 rounded-md shadow-lg transition-transform transform hover:scale-105">
+                        Export to CSV
                     </button>
                 </div>
             </div>
@@ -60,25 +65,16 @@
                     <span class="block sm:inline" id="error-text">An error occurred.</span>
                 </div>
 
-                <!-- Game State Display -->
                 <div id="game-state-container" class="hidden space-y-8">
-                    <div id="player-info-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Player info cards will be injected here -->
-                    </div>
-                    
-                    <!-- Action Bar -->
+                    <div id="player-info-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                     <div class="text-center">
                          <button id="next-phase-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 text-lg">
                             Next Phase
                         </button>
                     </div>
-
-                    <!-- Player's Hand Display -->
                      <div>
                         <h3 class="text-2xl font-semibold mb-4 text-gray-300 border-b border-gray-700 pb-2">Your Hand</h3>
-                        <div id="player-hand-container" class="flex flex-wrap justify-center gap-4 min-h-[210px]">
-                           <!-- Player's hand cards will be injected here -->
-                        </div>
+                        <div id="player-hand-container" class="flex flex-wrap justify-center gap-4 min-h-[210px]"></div>
                     </div>
                 </div>
             </div>
@@ -87,11 +83,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- UI Elements ---
             const importDeckButton = document.getElementById('import-deck-button');
+            const exportCsvButton = document.getElementById('export-csv-button');
             const deckUrlInput = document.getElementById('deck-url-input');
             const nextPhaseButton = document.getElementById('next-phase-button');
-            
             const importerPanel = document.getElementById('importer-panel');
             const gamePanel = document.getElementById('game-panel');
             const loader = document.getElementById('loader');
@@ -103,14 +98,8 @@
             const playerHandContainer = document.getElementById('player-hand-container');
             const phaseDisplay = document.getElementById('phase-display');
 
-            // --- Configuration ---
-            // IMPORTANT: PASTE YOUR RENDER URL HERE, replacing the example URL.
             const RENDER_SERVER_URL = 'https://brad-mtg-server.onrender.com'; // <-- PASTE YOUR RENDER URL HERE
 
-            const CREATE_GAME_URL = `${RENDER_SERVER_URL}/create-game`;
-            const NEXT_PHASE_URL = `${RENDER_SERVER_URL}/next-phase`;
-
-            // --- UI Control Functions ---
             const showLoader = (text) => {
                 gamePanel.classList.remove('hidden');
                 loaderText.textContent = text;
@@ -128,21 +117,23 @@
                 hideLoader();
             };
 
-            // --- Game Logic Functions ---
+            const getServerUrl = () => {
+                if (RENDER_SERVER_URL.includes('your-server-name')) {
+                    const url = prompt("Please paste your Render server URL (e.g., https://your-server-name.onrender.com):");
+                    if (url) sessionStorage.setItem('renderUrl', url);
+                    return url;
+                }
+                return RENDER_SERVER_URL;
+            };
+
             const handleCreateGame = async () => {
                 const url = deckUrlInput.value.trim();
-                if (!url) {
-                    showError('Please enter a deck URL.');
-                    return;
-                }
-                 if (RENDER_SERVER_URL.includes('your-server-name')) {
-                    alert("Please update the RENDER_SERVER_URL in the index.html file with your real Render URL.");
-                    return;
-                }
-                showLoader('Creating game on server...');
+                const serverUrl = getServerUrl();
+                if (!url || !serverUrl) return showError('Deck URL and Server URL are required.');
 
+                showLoader('Creating game on server...');
                 try {
-                    const response = await fetch(CREATE_GAME_URL, {
+                    const response = await fetch(`${serverUrl}/create-game`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ deckUrl: url })
@@ -158,13 +149,50 @@
                 }
             };
             
+            const handleExportCsv = async () => {
+                const url = deckUrlInput.value.trim();
+                const serverUrl = getServerUrl();
+                 if (!url || !serverUrl) return showError('Deck URL and Server URL are required.');
+
+                showLoader('Generating CSV file...');
+                try {
+                    const response = await fetch(`${serverUrl}/export-csv`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ deckUrl: url })
+                    });
+                     if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Server error (${response.status})`);
+                    }
+                    
+                    const blob = await response.blob();
+                    const filenameHeader = response.headers.get('Content-Disposition');
+                    const filename = filenameHeader ? filenameHeader.split('filename=')[1].replace(/"/g, '') : 'decklist.csv';
+
+                    const link = document.createElement('a');
+                    link.href = window.URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    hideLoader();
+                    importerPanel.classList.remove('hidden');
+
+
+                } catch(error) {
+                    showError(`Failed to export CSV: ${error.message}`);
+                }
+            };
+
             const handleNextPhase = async () => {
+                const serverUrl = sessionStorage.getItem('renderUrl') || RENDER_SERVER_URL;
                 nextPhaseButton.disabled = true;
                 nextPhaseButton.textContent = 'Advancing...';
                 nextPhaseButton.classList.add('opacity-50', 'cursor-not-allowed');
-
                 try {
-                    const response = await fetch(NEXT_PHASE_URL, { method: 'POST' });
+                    const response = await fetch(`${serverUrl}/next-phase`, { method: 'POST' });
                     if (!response.ok) {
                         const errorData = await response.json();
                         throw new Error(errorData.error || `Server error (${response.status})`);
@@ -223,9 +251,11 @@
                 gameStateContainer.classList.remove('hidden');
             };
 
-            // --- Event Listeners ---
             importDeckButton.addEventListener('click', handleCreateGame);
-            deckUrlInput.addEventListener('keydown', (e) => e.key === 'Enter' && handleCreateGame());
+            exportCsvButton.addEventListener('click', handleExportCsv);
+            deckUrlInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleCreateGame();
+            });
             nextPhaseButton.addEventListener('click', handleNextPhase);
         });
     </script>
