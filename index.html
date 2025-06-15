@@ -35,7 +35,7 @@
         <main>
             <!-- Deck Importer (Visible by default) -->
             <div id="importer-panel" class="bg-gray-800 rounded-lg shadow-xl p-6 ui-panel max-w-2xl mx-auto">
-                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Deck Input</h2>
+                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Create New Game</h2>
                 <p class="text-gray-300 mb-4">Paste a public Moxfield or Archidekt deck URL.</p>
                 <div class="mb-4">
                     <input type="text" id="deck-url-input" placeholder="Moxfield or Archidekt URL" class="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-4 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none placeholder-gray-500">
@@ -43,9 +43,6 @@
                  <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <button id="import-deck-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md shadow-lg transition-transform transform hover:scale-105">
                         Create Game
-                    </button>
-                    <button id="export-csv-button" class="bg-yellow-600 hover:bg-yellow-700 text-black font-bold py-2 px-6 rounded-md shadow-lg transition-transform transform hover:scale-105">
-                        Export to CSV
                     </button>
                 </div>
             </div>
@@ -67,11 +64,17 @@
 
                 <div id="game-state-container" class="hidden space-y-8">
                     <div id="player-info-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-                    <div class="text-center">
+                    
+                    <!-- Action Bar -->
+                    <div class="flex justify-center items-center gap-4">
                          <button id="next-phase-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 text-lg">
                             Next Phase
                         </button>
+                        <button id="export-csv-button" class="bg-yellow-600 hover:bg-yellow-700 text-black font-bold py-2 px-6 rounded-md shadow-lg transition-transform transform hover:scale-105">
+                            Export Player Deck
+                        </button>
                     </div>
+
                      <div>
                         <h3 class="text-2xl font-semibold mb-4 text-gray-300 border-b border-gray-700 pb-2">Your Hand</h3>
                         <div id="player-hand-container" class="flex flex-wrap justify-center gap-4 min-h-[210px]"></div>
@@ -117,23 +120,14 @@
                 hideLoader();
             };
 
-            const getServerUrl = () => {
-                if (RENDER_SERVER_URL.includes('your-server-name')) {
-                    const url = prompt("Please paste your Render server URL (e.g., https://your-server-name.onrender.com):");
-                    if (url) sessionStorage.setItem('renderUrl', url);
-                    return url;
-                }
-                return RENDER_SERVER_URL;
-            };
-
             const handleCreateGame = async () => {
                 const url = deckUrlInput.value.trim();
-                const serverUrl = getServerUrl();
-                if (!url || !serverUrl) return showError('Deck URL and Server URL are required.');
+                if (!url) return showError('Deck URL is required.');
+                if (RENDER_SERVER_URL.includes('your-server-name')) return alert("Please update the RENDER_SERVER_URL in the index.html file.");
 
                 showLoader('Creating game on server...');
                 try {
-                    const response = await fetch(`${serverUrl}/create-game`, {
+                    const response = await fetch(`${RENDER_SERVER_URL}/create-game`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ deckUrl: url })
@@ -143,6 +137,7 @@
                         throw new Error(errorData.error || `Server error (${response.status})`);
                     }
                     const initialGameState = await response.json();
+                    sessionStorage.setItem('currentDeckUrl', url); // Store URL for export
                     updateUI(initialGameState);
                 } catch (error) {
                     showError(`Failed to create game: ${error.message}`);
@@ -150,13 +145,18 @@
             };
             
             const handleExportCsv = async () => {
-                const url = deckUrlInput.value.trim();
-                const serverUrl = getServerUrl();
-                 if (!url || !serverUrl) return showError('Deck URL and Server URL are required.');
+                const url = sessionStorage.getItem('currentDeckUrl');
+                if (!url) {
+                    alert('No deck is loaded to export. Please create a new game first.');
+                    return;
+                }
 
-                showLoader('Generating CSV file...');
+                exportCsvButton.disabled = true;
+                exportCsvButton.textContent = 'Exporting...';
+                exportCsvButton.classList.add('opacity-50');
+
                 try {
-                    const response = await fetch(`${serverUrl}/export-csv`, {
+                    const response = await fetch(`${RENDER_SERVER_URL}/export-csv`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ deckUrl: url })
@@ -177,22 +177,21 @@
                     link.click();
                     document.body.removeChild(link);
                     
-                    hideLoader();
-                    importerPanel.classList.remove('hidden');
-
-
                 } catch(error) {
                     showError(`Failed to export CSV: ${error.message}`);
+                } finally {
+                    exportCsvButton.disabled = false;
+                    exportCsvButton.textContent = 'Export Player Deck';
+                    exportCsvButton.classList.remove('opacity-50');
                 }
             };
 
             const handleNextPhase = async () => {
-                const serverUrl = sessionStorage.getItem('renderUrl') || RENDER_SERVER_URL;
                 nextPhaseButton.disabled = true;
                 nextPhaseButton.textContent = 'Advancing...';
                 nextPhaseButton.classList.add('opacity-50', 'cursor-not-allowed');
                 try {
-                    const response = await fetch(`${serverUrl}/next-phase`, { method: 'POST' });
+                    const response = await fetch(`${RENDER_SERVER_URL}/next-phase`, { method: 'POST' });
                     if (!response.ok) {
                         const errorData = await response.json();
                         throw new Error(errorData.error || `Server error (${response.status})`);
